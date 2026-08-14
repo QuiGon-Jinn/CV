@@ -26,11 +26,10 @@ namespace CvWebApi.Controllers
                 return BadRequest(ModelState);
 
             // Try to find existing candidate by email (case-insensitive)
-            var normalizedEmail = input.EmailAddress.Trim().ToLowerInvariant();
             var existing = await _db.Candidates
-                .FirstOrDefaultAsync(c => c.EmailAddress.ToLower() == normalizedEmail);
+                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.EmailAddress.Trim(), StringComparison.OrdinalIgnoreCase));
 
-            if (existing != null)
+            if (existing is not null)
             {
                 // Update fields
                 existing.FullName = input.FullName;
@@ -81,11 +80,10 @@ namespace CvWebApi.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var normalizedCandidateEmail = input.CandidateEmail.Trim().ToLowerInvariant();
             var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => c.EmailAddress.ToLower() == normalizedCandidateEmail);
+                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
 
-            if (candidate == null)
+            if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
 
             var work = new WorkExperience
@@ -112,26 +110,27 @@ namespace CvWebApi.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var normalizedCandidateEmail = input.CandidateEmail.Trim().ToLowerInvariant();
             var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => c.EmailAddress.ToLower() == normalizedCandidateEmail);
+                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
 
-            if (candidate == null)
+            if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
 
-            // Find a work experience record for this candidate and employer name (case-insensitive)
-            var normalizedEmployer = input.EmployerName.Trim().ToLowerInvariant();
-            var work = await _db.WorkExperiences
-                .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null && w.EmployerName.ToLower() == normalizedEmployer);
 
-            // If exact case-insensitive match not found, try partial match (contains)
-            if (work == null)
+            // Find a work experience record for this candidate and employer name
+            var work = await _db.WorkExperiences
+                .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
+                && w.EmployerName.Equals(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            // If exact case-insensitive match not found, try partial match (contains) with OrdinalIgnoreCase
+            if (work is null)
             {
                 work = await _db.WorkExperiences
-                    .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null && w.EmployerName.ToLower().Contains(normalizedEmployer));
+                    .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
+                    && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
             }
 
-            if (work == null)
+            if (work is null)
                 return NotFound(new { Message = "Work experience not found for provided employer and candidate." });
 
             var achievement = new AchievementsAndTasks
@@ -153,28 +152,28 @@ namespace CvWebApi.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var normalizedCandidateEmail = input.CandidateEmail.Trim().ToLowerInvariant();
             var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => c.EmailAddress.ToLower() == normalizedCandidateEmail);
+                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
 
-            if (candidate == null)
+            if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
 
             Guid? workId = null;
             if (!string.IsNullOrWhiteSpace(input.EmployerName))
             {
-                var normalizedEmployer = input.EmployerName.Trim().ToLowerInvariant();
                 var work = await _db.WorkExperiences
-                    .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null && w.EmployerName.ToLower() == normalizedEmployer);
+                    .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
+                    && w.EmployerName.Equals(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
 
-                if (work == null)
+                if (work is null)
                 {
-                    // try partial match
+                    // try partial match with OrdinalIgnoreCase
                     work = await _db.WorkExperiences
-                        .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null && w.EmployerName.ToLower().Contains(normalizedEmployer));
+                        .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
+                        && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
                 }
 
-                if (work == null)
+                if (work is null)
                     return NotFound(new { Message = "Work experience not found for provided employer and candidate." });
 
                 workId = work.Id;
@@ -206,11 +205,10 @@ namespace CvWebApi.Controllers
             if (string.IsNullOrWhiteSpace(input.SkillName) && string.IsNullOrWhiteSpace(input.SkillPicture))
                 return BadRequest(new { Message = "Either SkillName or SkillPicture must be provided." });
 
-            var normalizedCandidateEmail = input.CandidateEmail.Trim().ToLowerInvariant();
             var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => c.EmailAddress.ToLower() == normalizedCandidateEmail);
+                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
 
-            if (candidate == null)
+            if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
 
             Guid? picId = null;
@@ -233,6 +231,121 @@ namespace CvWebApi.Controllers
             await _db.SaveChangesAsync();
 
             return Ok(soft);
+        }
+
+        [HttpPost("AddInterest")]
+        public async Task<IActionResult> AddInterest([FromBody] InterestInput input)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (string.IsNullOrWhiteSpace(input.InterestName) && string.IsNullOrWhiteSpace(input.InterestPicture))
+                return BadRequest(new { Message = "Either InterestName or InterestPicture must be provided." });
+
+            var candidate = await _db.Candidates
+                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            if (candidate is null)
+                return NotFound(new { Message = "Candidate not found for provided email." });
+
+            Guid? picId = null;
+            if (!string.IsNullOrWhiteSpace(input.InterestPicture))
+            {
+                var pic = new Picture { Id = Guid.NewGuid(), Photo = input.InterestPicture };
+                _db.Pictures.Add(pic);
+                picId = pic.Id;
+            }
+
+            var interest = new Interest
+            {
+                Id = Guid.NewGuid(),
+                CandidateId = candidate.Id,
+                InterestName = input.InterestName,
+                InterestPictureId = picId
+            };
+
+            _db.Interests.Add(interest);
+            await _db.SaveChangesAsync();
+
+            return Ok(interest);
+        }
+
+        [HttpPost("AddEducation")]
+        public async Task<IActionResult> AddEducation([FromBody] EducationInput input)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var candidate = await _db.Candidates
+                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            if (candidate is null)
+                return NotFound(new { Message = "Candidate not found for provided email." });
+
+            var edu = new Education
+            {
+                Id = Guid.NewGuid(),
+                CandidateId = candidate.Id,
+                InstituteName = input.InstituteName,
+                Qualification = input.Qualification,
+                StartDate = input.StartDate,
+                EndDate = input.EndDate
+            };
+
+            _db.Educations.Add(edu);
+            await _db.SaveChangesAsync();
+
+            return Ok(edu);
+        }
+
+        [HttpPost("AddReference")]
+        public async Task<IActionResult> AddReference([FromBody] ReferenceInput input)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var candidate = await _db.Candidates
+                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            if (candidate is null)
+                return NotFound(new { Message = "Candidate not found for provided email." });
+
+            Guid? workId = null;
+            if (!string.IsNullOrWhiteSpace(input.EmployerName))
+            {
+                var work = await _db.WorkExperiences
+                    .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
+                    && w.EmployerName.Equals(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                if (work is null)
+                {
+                    // try partial match with OrdinalIgnoreCase
+                    work = await _db.WorkExperiences
+                        .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
+                        && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (work is null)
+                    return NotFound(new { Message = "Work experience not found for provided employer and candidate." });
+
+                workId = work.Id;
+            }
+
+            var reference = new Reference
+            {
+                Id = Guid.NewGuid(),
+                CandidateId = candidate.Id,
+                Name = input.Name,
+                Relationship = input.Relationship,
+                EmailAddress = input.EmailAddress,
+                PhoneNumber = input.PhoneNumber,
+                WorkExperienceId = workId
+            };
+
+            _db.References.Add(reference);
+            await _db.SaveChangesAsync();
+
+            return Ok(reference);
         }
     }
 }
