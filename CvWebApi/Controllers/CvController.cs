@@ -347,5 +347,50 @@ namespace CvWebApi.Controllers
 
             return Ok(reference);
         }
+
+        [HttpGet("GetCv")]
+        public async Task<IActionResult> GetCv([FromQuery] string? email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new { Message = "Email query parameter is required." });
+
+            var normalized = email.Trim();
+
+            var candidate = await _db.Candidates
+                .Where(c => string.Equals(c.EmailAddress, normalized, StringComparison.OrdinalIgnoreCase))
+                .Select(c => new
+                {
+                    c.FullName,
+                    c.EmailAddress,
+                    c.PhoneNumber,
+                    c.Location,
+                    c.Title,
+                    c.Summary,
+                    ProfilePic = c.ProfilePic == null ? null : new { c.ProfilePic.Photo },
+                    WorkExperience = c.WorkExperience.Select(w => new
+                    {
+                        w.EmployerName,
+                        w.JobTitle,
+                        w.StartDate,
+                        w.EndDate,
+                        w.Location,
+                        w.Summary,
+                        Skills = w.Skills.Select(s => new { s.SkillName, s.SkillLevel, s.SkillType, s.WorkExperienceId, s.CandidateId }).ToList(),
+                        AchievementsAndTasks = w.AchievementsAndTasks.Select(a => new { a.Text }).ToList(),
+                        References = w.References.Select(r => new { r.Name, r.Relationship, r.EmailAddress, r.PhoneNumber }).ToList()
+                    }).ToList(),
+                    Education = c.Education.Select(e => new { e.InstituteName, e.Qualification, e.StartDate, e.EndDate }).ToList(),
+                    SoftSkills = c.SoftSkills.Select(s => new { s.SkillName, SkillPicture = s.SkillPicture == null ? null : new { s.SkillPicture.Photo } }).ToList(),
+                    Skills = c.Skills.Select(s => new { s.SkillName, s.SkillLevel, s.SkillType, s.WorkExperienceId }).ToList(),
+                    Interests = c.Interests.Select(i => new { i.InterestName, InterestPicture = i.InterestPicture == null ? null : new { i.InterestPicture.Photo } }).ToList(),
+                    References = c.References.Select(r => new { r.Name, r.Relationship, r.EmailAddress, r.PhoneNumber, r.WorkExperienceId }).ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (candidate == null)
+                return NotFound(new { Message = "Candidate not found for provided email." });
+
+            return Ok(candidate);
+        }
     }
 }
