@@ -116,19 +116,15 @@ namespace CvWebApi.Controllers
             if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
 
-
             // Find a work experience record for this candidate and employer name
             var work = await _db.WorkExperiences
                 .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
                 && w.EmployerName.Equals(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
 
             // If exact case-insensitive match not found, try partial match (contains) with OrdinalIgnoreCase
-            if (work is null)
-            {
-                work = await _db.WorkExperiences
-                    .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
-                    && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
-            }
+            work ??= await _db.WorkExperiences
+                .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
+                && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
 
             if (work is null)
                 return NotFound(new { Message = "Work experience not found for provided employer and candidate." });
@@ -165,13 +161,9 @@ namespace CvWebApi.Controllers
                     .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
                     && w.EmployerName.Equals(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
 
-                if (work is null)
-                {
-                    // try partial match with OrdinalIgnoreCase
-                    work = await _db.WorkExperiences
-                        .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
-                        && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
-                }
+                work ??= await _db.WorkExperiences
+                    .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
+                    && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));                
 
                 if (work is null)
                     return NotFound(new { Message = "Work experience not found for provided employer and candidate." });
@@ -317,13 +309,10 @@ namespace CvWebApi.Controllers
                     .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
                     && w.EmployerName.Equals(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
 
-                if (work is null)
-                {
-                    // try partial match with OrdinalIgnoreCase
-                    work = await _db.WorkExperiences
-                        .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
-                        && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
-                }
+                // try partial match with OrdinalIgnoreCase
+                work ??= await _db.WorkExperiences
+                    .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null
+                    && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
 
                 if (work is null)
                     return NotFound(new { Message = "Work experience not found for provided employer and candidate." });

@@ -1,0 +1,24 @@
+{
+  "name": "cv-viewer-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "ng serve",
+    "build": "ng build",
+    "test": "echo \"No tests\" && exit 0"
+  },
+  "dependencies": {
+    "@angular/common": "latest",
+    "@angular/core": "latest",
+    "@angular/platform-browser": "latest",
+    "@angular/router": "latest",
+    "rxjs": "latest",
+    "zone.js": "latest"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "latest",
+    "@angular/cli": "latest",
+    "@angular/compiler-cli": "latest",
+    "typescript": "latest"
+  }
+}
