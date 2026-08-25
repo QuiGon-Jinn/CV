@@ -1,10 +1,9 @@
-using System;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using CvWebApi.Data;
 using CvWebApi.InputModels;
 using CvWebApi.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace CvWebApi.Controllers
 {
@@ -20,14 +19,19 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddCv")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Candidate successfully added", typeof(Candidate))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Candidate not added. ModelState is invalid")]
         public async Task<IActionResult> AddCv([FromBody] CandidateInput input)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             // Try to find existing candidate by email (case-insensitive)
-            var existing = await _db.Candidates
-                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.EmailAddress.Trim(), StringComparison.OrdinalIgnoreCase));
+            var inputEmailAddress = input.EmailAddress?.Trim().ToLower();
+            if(string.IsNullOrWhiteSpace(inputEmailAddress))
+                return BadRequest(new { Message = "Email can't be null or empty" });
+
+            var existing = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputEmailAddress);
 
             if (existing is not null)
             {
@@ -54,7 +58,7 @@ namespace CvWebApi.Controllers
             {
                 Id = Guid.NewGuid(),
                 FullName = input.FullName,
-                EmailAddress = input.EmailAddress,
+                EmailAddress = inputEmailAddress,
                 PhoneNumber = input.PhoneNumber,
                 Location = input.Location,
                 Title = input.Title,
@@ -75,13 +79,19 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddWorkExperience")]
+        [SwaggerResponse(StatusCodes.Status200OK, "WorkExperience successfully added", typeof(WorkExperience))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Work experience not added. ModelState is invalid")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
         public async Task<IActionResult> AddWorkExperience([FromBody] WorkExperienceInput input)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
+            var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(inputCandidateEmail))
+                return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
             if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
@@ -90,7 +100,7 @@ namespace CvWebApi.Controllers
             {
                 Id = Guid.NewGuid(),
                 CandidateId = candidate.Id,
-                EmployerName = input.EmployerName,
+                EmployerName = input.EmployerName.Trim(),
                 JobTitle = input.JobTitle,
                 StartDate = input.StartDate,
                 EndDate = input.EndDate,
@@ -105,13 +115,19 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddAchievementAndTask")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Achievement and task successfully added", typeof(AchievementsAndTasks))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Achievement and task not added. Work experience not found for provided employer and candidate.")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
         public async Task<IActionResult> AddAchievementAndTask([FromBody] AchievementAndTaskInput input)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
+            var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(inputCandidateEmail))
+                return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
             if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
@@ -119,12 +135,12 @@ namespace CvWebApi.Controllers
             // Find a work experience record for this candidate and employer name
             var work = await _db.WorkExperiences
                 .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
-                && w.EmployerName.Equals(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
+                && w.EmployerName.Equals(input.EmployerName.Trim()));
 
             // If exact case-insensitive match not found, try partial match (contains) with OrdinalIgnoreCase
             work ??= await _db.WorkExperiences
                 .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
-                && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
+                && w.EmployerName.Contains(input.EmployerName.Trim()));
 
             if (work is null)
                 return NotFound(new { Message = "Work experience not found for provided employer and candidate." });
@@ -143,13 +159,19 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddSkill")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Skill successfully added", typeof(Skill))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Skill not added. ModelState is invalid")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate or WorkEexperience not found for provided employer and candidate.")]
         public async Task<IActionResult> AddSkill([FromBody] SkillInput input)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
+            var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(inputCandidateEmail))
+                return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
             if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
@@ -159,11 +181,11 @@ namespace CvWebApi.Controllers
             {
                 var work = await _db.WorkExperiences
                     .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
-                    && w.EmployerName.Equals(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
+                    && w.EmployerName.Equals(input.EmployerName.Trim()));
 
                 work ??= await _db.WorkExperiences
                     .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
-                    && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));                
+                    && w.EmployerName.Contains(input.EmployerName.Trim()));                
 
                 if (work is null)
                     return NotFound(new { Message = "Work experience not found for provided employer and candidate." });
@@ -188,6 +210,9 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddSoftSkill")]
+        [SwaggerResponse(StatusCodes.Status200OK, "SoftSkill successfully added", typeof(SoftSkill))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "SoftSkill not added. Either SkillName or SkillPicture must be provided.")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
         public async Task<IActionResult> AddSoftSkill([FromBody] SoftSkillInput input)
         {
             if (!ModelState.IsValid)
@@ -197,8 +222,11 @@ namespace CvWebApi.Controllers
             if (string.IsNullOrWhiteSpace(input.SkillName) && string.IsNullOrWhiteSpace(input.SkillPicture))
                 return BadRequest(new { Message = "Either SkillName or SkillPicture must be provided." });
 
-            var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
+            var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(inputCandidateEmail))
+                return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
             if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
@@ -226,6 +254,9 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddInterest")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Interest successfully added", typeof(Interest))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Interest not added. ModelState is invalid")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
         public async Task<IActionResult> AddInterest([FromBody] InterestInput input)
         {
             if (!ModelState.IsValid)
@@ -234,8 +265,11 @@ namespace CvWebApi.Controllers
             if (string.IsNullOrWhiteSpace(input.InterestName) && string.IsNullOrWhiteSpace(input.InterestPicture))
                 return BadRequest(new { Message = "Either InterestName or InterestPicture must be provided." });
 
-            var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
+            var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(inputCandidateEmail))
+                return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
             if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
@@ -263,13 +297,19 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddEducation")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Education successfully added", typeof(Education))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Education not added. ModelState is invalid")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
         public async Task<IActionResult> AddEducation([FromBody] EducationInput input)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
+            var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(inputCandidateEmail))
+                return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
             if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
@@ -291,13 +331,19 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddReference")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Reference successfully added", typeof(Education))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Reference not added. Work experience not found for provided employer and candidate.")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
         public async Task<IActionResult> AddReference([FromBody] ReferenceInput input)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var candidate = await _db.Candidates
-                .FirstOrDefaultAsync(c => string.Equals(c.EmailAddress, input.CandidateEmail.Trim(), StringComparison.OrdinalIgnoreCase));
+            var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(inputCandidateEmail))
+                return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
             if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
@@ -307,12 +353,12 @@ namespace CvWebApi.Controllers
             {
                 var work = await _db.WorkExperiences
                     .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null 
-                    && w.EmployerName.Equals(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
+                    && w.EmployerName.Equals(input.EmployerName.Trim()));
 
                 // try partial match with OrdinalIgnoreCase
                 work ??= await _db.WorkExperiences
                     .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null
-                    && w.EmployerName.Contains(input.EmployerName.Trim(), StringComparison.OrdinalIgnoreCase));
+                    && w.EmployerName.Contains(input.EmployerName.Trim()));
 
                 if (work is null)
                     return NotFound(new { Message = "Work experience not found for provided employer and candidate." });
@@ -338,15 +384,18 @@ namespace CvWebApi.Controllers
         }
 
         [HttpGet("GetCv")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Successfully retrieved Candidate CV", typeof(Candidate))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Email query parameter is required.")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
         public async Task<IActionResult> GetCv([FromQuery] string? email)
         {
             if (string.IsNullOrWhiteSpace(email))
                 return BadRequest(new { Message = "Email query parameter is required." });
 
-            var normalized = email.Trim();
+            var normalizedEmail = email.Trim().ToLower();
 
             var candidate = await _db.Candidates
-                .Where(c => string.Equals(c.EmailAddress, normalized, StringComparison.OrdinalIgnoreCase))
+                .Where(c => c.EmailAddress == normalizedEmail)
                 .Select(c => new
                 {
                     c.FullName,

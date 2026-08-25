@@ -17,7 +17,11 @@ builder.Services.AddDbContext<CvDbContext>(options =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    // Enable Swashbuckle annotations
+    options.EnableAnnotations();
+});
 
 var app = builder.Build();
 
