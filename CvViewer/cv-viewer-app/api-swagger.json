@@ -1,0 +1,1148 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "CvWebApi",
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/Cv/AddCv": {
+      "post": {
+        "tags": [
+          "Cv"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Candidate successfully added",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidate"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidate"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Candidate not added. ModelState is invalid"
+          }
+        }
+      }
+    },
+    "/api/Cv/AddWorkExperience": {
+      "post": {
+        "tags": [
+          "Cv"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkExperienceInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkExperienceInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkExperienceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "WorkExperience successfully added",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkExperience"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkExperience"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkExperience"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Work experience not added. ModelState is invalid"
+          },
+          "404": {
+            "description": "Candidate not found for provided email."
+          }
+        }
+      }
+    },
+    "/api/Cv/AddAchievementAndTask": {
+      "post": {
+        "tags": [
+          "Cv"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AchievementAndTaskInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AchievementAndTaskInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AchievementAndTaskInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Achievement and task successfully added",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementsAndTasks"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementsAndTasks"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AchievementsAndTasks"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Achievement and task not added. Work experience not found for provided employer and candidate."
+          },
+          "404": {
+            "description": "Candidate not found for provided email."
+          }
+        }
+      }
+    },
+    "/api/Cv/AddSkill": {
+      "post": {
+        "tags": [
+          "Cv"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Skill successfully added",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Skill"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Skill"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Skill"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Skill not added. ModelState is invalid"
+          },
+          "404": {
+            "description": "Candidate or WorkEexperience not found for provided employer and candidate."
+          }
+        }
+      }
+    },
+    "/api/Cv/AddSoftSkill": {
+      "post": {
+        "tags": [
+          "Cv"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SoftSkillInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SoftSkillInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SoftSkillInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SoftSkill successfully added",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoftSkill"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoftSkill"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoftSkill"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SoftSkill not added. Either SkillName or SkillPicture must be provided."
+          },
+          "404": {
+            "description": "Candidate not found for provided email."
+          }
+        }
+      }
+    },
+    "/api/Cv/AddInterest": {
+      "post": {
+        "tags": [
+          "Cv"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterestInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterestInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterestInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Interest successfully added",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Interest"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Interest"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Interest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Interest not added. ModelState is invalid"
+          },
+          "404": {
+            "description": "Candidate not found for provided email."
+          }
+        }
+      }
+    },
+    "/api/Cv/AddEducation": {
+      "post": {
+        "tags": [
+          "Cv"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EducationInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EducationInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EducationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Education successfully added",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Education"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Education"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Education"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Education not added. ModelState is invalid"
+          },
+          "404": {
+            "description": "Candidate not found for provided email."
+          }
+        }
+      }
+    },
+    "/api/Cv/AddReference": {
+      "post": {
+        "tags": [
+          "Cv"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferenceInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferenceInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferenceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reference successfully added",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Education"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Education"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Education"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Reference not added. Work experience not found for provided employer and candidate."
+          },
+          "404": {
+            "description": "Candidate not found for provided email."
+          }
+        }
+      }
+    },
+    "/api/Cv/GetCv": {
+      "get": {
+        "tags": [
+          "Cv"
+        ],
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved Candidate CV",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidate"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidate"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Email query parameter is required."
+          },
+          "404": {
+            "description": "Candidate not found for provided email."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AchievementAndTaskInput": {
+        "required": [
+          "candidateEmail",
+          "employerName",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "text": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "candidateEmail": {
+            "minLength": 1,
+            "type": "string",
+            "format": "email"
+          },
+          "employerName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AchievementsAndTasks": {
+        "required": [
+          "text",
+          "workExperienceId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workExperienceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workExperience": {
+            "$ref": "#/components/schemas/WorkExperience"
+          },
+          "text": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Candidate": {
+        "required": [
+          "emailAddress",
+          "fullName"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "emailAddress": {
+            "minLength": 1,
+            "type": "string",
+            "format": "email"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "location": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "profilePicId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "profilePic": {
+            "$ref": "#/components/schemas/Picture"
+          },
+          "workExperience": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkExperience"
+            },
+            "nullable": true
+          },
+          "education": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Education"
+            },
+            "nullable": true
+          },
+          "softSkills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SoftSkill"
+            },
+            "nullable": true
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Skill"
+            },
+            "nullable": true
+          },
+          "interests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Interest"
+            },
+            "nullable": true
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CandidateInput": {
+        "required": [
+          "emailAddress",
+          "fullName"
+        ],
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "emailAddress": {
+            "minLength": 1,
+            "type": "string",
+            "format": "email"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "location": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "profilePic": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Education": {
+        "required": [
+          "candidateId",
+          "instituteName",
+          "qualification"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/Candidate"
+          },
+          "instituteName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "qualification": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "EducationInput": {
+        "required": [
+          "candidateEmail",
+          "instituteName",
+          "qualification"
+        ],
+        "type": "object",
+        "properties": {
+          "candidateEmail": {
+            "minLength": 1,
+            "type": "string",
+            "format": "email"
+          },
+          "instituteName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "qualification": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Interest": {
+        "required": [
+          "candidateId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/Candidate"
+          },
+          "interestName": {
+            "type": "string",
+            "nullable": true
+          },
+          "interestPictureId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "interestPicture": {
+            "$ref": "#/components/schemas/Picture"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InterestInput": {
+        "required": [
+          "candidateEmail"
+        ],
+        "type": "object",
+        "properties": {
+          "candidateEmail": {
+            "minLength": 1,
+            "type": "string",
+            "format": "email"
+          },
+          "interestName": {
+            "type": "string",
+            "nullable": true
+          },
+          "interestPicture": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Picture": {
+        "required": [
+          "photo"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "photo": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Reference": {
+        "required": [
+          "candidateId",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "relationship": {
+            "type": "string",
+            "nullable": true
+          },
+          "emailAddress": {
+            "type": "string",
+            "format": "email",
+            "nullable": true
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/Candidate"
+          },
+          "workExperienceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "workExperience": {
+            "$ref": "#/components/schemas/WorkExperience"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReferenceInput": {
+        "required": [
+          "candidateEmail",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "candidateEmail": {
+            "minLength": 1,
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "relationship": {
+            "type": "string",
+            "nullable": true
+          },
+          "emailAddress": {
+            "type": "string",
+            "format": "email",
+            "nullable": true
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "employerName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Skill": {
+        "required": [
+          "candidateId",
+          "skillLevel",
+          "skillName",
+          "skillType"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/Candidate"
+          },
+          "workExperienceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "workExperience": {
+            "$ref": "#/components/schemas/WorkExperience"
+          },
+          "skillName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "skillLevel": {
+            "$ref": "#/components/schemas/SkillLevel"
+          },
+          "skillType": {
+            "$ref": "#/components/schemas/SkillType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillInput": {
+        "required": [
+          "candidateEmail",
+          "skillLevel",
+          "skillName",
+          "skillType"
+        ],
+        "type": "object",
+        "properties": {
+          "candidateEmail": {
+            "minLength": 1,
+            "type": "string",
+            "format": "email"
+          },
+          "employerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "skillName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "skillType": {
+            "$ref": "#/components/schemas/SkillType"
+          },
+          "skillLevel": {
+            "$ref": "#/components/schemas/SkillLevel"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SkillLevel": {
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "SkillType": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "SoftSkill": {
+        "required": [
+          "candidateId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/Candidate"
+          },
+          "skillName": {
+            "type": "string",
+            "nullable": true
+          },
+          "skillPictureId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "skillPicture": {
+            "$ref": "#/components/schemas/Picture"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SoftSkillInput": {
+        "required": [
+          "candidateEmail"
+        ],
+        "type": "object",
+        "properties": {
+          "candidateEmail": {
+            "minLength": 1,
+            "type": "string",
+            "format": "email"
+          },
+          "skillName": {
+            "type": "string",
+            "nullable": true
+          },
+          "skillPicture": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkExperience": {
+        "required": [
+          "candidateId",
+          "employerName",
+          "jobTitle"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/Candidate"
+          },
+          "jobTitle": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "employerName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "location": {
+            "type": "string",
+            "nullable": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Skill"
+            },
+            "nullable": true
+          },
+          "achievementsAndTasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AchievementsAndTasks"
+            },
+            "nullable": true
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkExperienceInput": {
+        "required": [
+          "candidateEmail",
+          "employerName",
+          "jobTitle"
+        ],
+        "type": "object",
+        "properties": {
+          "employerName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "jobTitle": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "location": {
+            "type": "string",
+            "nullable": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "candidateEmail": {
+            "minLength": 1,
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Cv"
+    }
+  ]
+}

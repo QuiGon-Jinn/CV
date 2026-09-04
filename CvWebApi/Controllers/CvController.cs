@@ -383,6 +383,206 @@ namespace CvWebApi.Controllers
             return Ok(reference);
         }
 
+        [HttpDelete("DeleteWorkExperience/{id}")]
+        [SwaggerResponse(StatusCodes.Status200OK, "WorkExperience deleted")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "WorkExperience not found")]
+        public async Task<IActionResult> DeleteWorkExperience([FromRoute] Guid id)
+        {
+            var work = await _db.WorkExperiences
+                .Include(w => w.AchievementsAndTasks)
+                .Include(w => w.Skills)
+                .Include(w => w.References)
+                .FirstOrDefaultAsync(w => w.Id == id);
+
+            if (work is null)
+                return NotFound(new { Message = "WorkExperience not found." });
+
+            // Remove children first
+            if (work.AchievementsAndTasks.Any())
+                _db.AchievementsAndTasks.RemoveRange(work.AchievementsAndTasks);
+
+            if (work.Skills.Any())
+                _db.Skills.RemoveRange(work.Skills);
+
+            if (work.References.Any())
+                _db.References.RemoveRange(work.References);
+
+            _db.WorkExperiences.Remove(work);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { Message = "WorkExperience deleted.", Id = id });
+        }
+
+        [HttpDelete("DeleteAchievement/{id}")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Achievement deleted")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Achievement not found")]
+        public async Task<IActionResult> DeleteAchievement([FromRoute] Guid id)
+        {
+            var ach = await _db.AchievementsAndTasks.FindAsync(id);
+            if (ach is null)
+                return NotFound(new { Message = "Achievement not found." });
+
+            _db.AchievementsAndTasks.Remove(ach);
+            await _db.SaveChangesAsync();
+            return Ok(new { Message = "Achievement deleted.", Id = id });
+        }
+
+        [HttpDelete("DeleteSkill/{id}")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Skill deleted")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Skill not found")]
+        public async Task<IActionResult> DeleteSkill([FromRoute] Guid id)
+        {
+            var skill = await _db.Skills.FindAsync(id);
+            if (skill is null)
+                return NotFound(new { Message = "Skill not found." });
+
+            _db.Skills.Remove(skill);
+            await _db.SaveChangesAsync();
+            return Ok(new { Message = "Skill deleted.", Id = id });
+        }
+
+        [HttpDelete("DeleteSoftSkill/{id}")]
+        [SwaggerResponse(StatusCodes.Status200OK, "SoftSkill deleted")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "SoftSkill not found")]
+        public async Task<IActionResult> DeleteSoftSkill([FromRoute] Guid id)
+        {
+            var soft = await _db.SoftSkills.FindAsync(id);
+            if (soft is null)
+                return NotFound(new { Message = "SoftSkill not found." });
+
+            // remove associated picture if present
+            if (soft.SkillPictureId != null)
+            {
+                var pic = await _db.Pictures.FindAsync(soft.SkillPictureId.Value);
+                if (pic != null)
+                    _db.Pictures.Remove(pic);
+            }
+
+            _db.SoftSkills.Remove(soft);
+            await _db.SaveChangesAsync();
+            return Ok(new { Message = "SoftSkill deleted.", Id = id });
+        }
+
+        [HttpDelete("DeleteInterest/{id}")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Interest deleted")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Interest not found")]
+        public async Task<IActionResult> DeleteInterest([FromRoute] Guid id)
+        {
+            var interest = await _db.Interests.FindAsync(id);
+            if (interest is null)
+                return NotFound(new { Message = "Interest not found." });
+
+            if (interest.InterestPictureId != null)
+            {
+                var pic = await _db.Pictures.FindAsync(interest.InterestPictureId.Value);
+                if (pic != null)
+                    _db.Pictures.Remove(pic);
+            }
+
+            _db.Interests.Remove(interest);
+            await _db.SaveChangesAsync();
+            return Ok(new { Message = "Interest deleted.", Id = id });
+        }
+
+        [HttpDelete("DeleteEducation/{id}")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Education deleted")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Education not found")]
+        public async Task<IActionResult> DeleteEducation([FromRoute] Guid id)
+        {
+            var edu = await _db.Educations.FindAsync(id);
+            if (edu is null)
+                return NotFound(new { Message = "Education not found." });
+
+            _db.Educations.Remove(edu);
+            await _db.SaveChangesAsync();
+            return Ok(new { Message = "Education deleted.", Id = id });
+        }
+
+        [HttpDelete("DeleteReference/{id}")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Reference deleted")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Reference not found")]
+        public async Task<IActionResult> DeleteReference([FromRoute] Guid id)
+        {
+            var reference = await _db.References.FindAsync(id);
+            if (reference is null)
+                return NotFound(new { Message = "Reference not found." });
+
+            _db.References.Remove(reference);
+            await _db.SaveChangesAsync();
+            return Ok(new { Message = "Reference deleted.", Id = id });
+        }
+
+        [HttpDelete("DeleteCv/{id}")]
+        [SwaggerResponse(StatusCodes.Status200OK, "Candidate and related records deleted")]
+        [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found")]
+        public async Task<IActionResult> DeleteCv([FromRoute] Guid id)
+        {
+            var candidate = await _db.Candidates.FindAsync(id);
+            if (candidate is null)
+                return NotFound(new { Message = "Candidate not found." });
+
+            // gather related work experience ids
+            var workIds = await _db.WorkExperiences.Where(w => w.CandidateId == id).Select(w => w.Id).ToListAsync();
+
+            if (workIds.Any())
+            {
+                // delete achievements linked to those work experiences
+                var ach = _db.AchievementsAndTasks.Where(a => workIds.Contains(a.WorkExperienceId));
+                _db.AchievementsAndTasks.RemoveRange(ach);
+
+                // delete references linked to those work experiences
+                var refsByWork = _db.References.Where(r => r.WorkExperienceId != null && workIds.Contains(r.WorkExperienceId.Value));
+                _db.References.RemoveRange(refsByWork);
+
+                // delete work-related skills
+                var skillsByWork = _db.Skills.Where(s => s.WorkExperienceId != null && workIds.Contains(s.WorkExperienceId.Value));
+                _db.Skills.RemoveRange(skillsByWork);
+
+                // delete the work experiences
+                var works = _db.WorkExperiences.Where(w => w.CandidateId == id);
+                _db.WorkExperiences.RemoveRange(works);
+            }
+
+            // delete references, skills, education, softskills, interests tied to candidate
+            var refs = _db.References.Where(r => r.CandidateId == id);
+            _db.References.RemoveRange(refs);
+
+            var skills = _db.Skills.Where(s => s.CandidateId == id);
+            _db.Skills.RemoveRange(skills);
+
+            var educations = _db.Educations.Where(e => e.CandidateId == id);
+            _db.Educations.RemoveRange(educations);
+
+            var softs = await _db.SoftSkills.Where(s => s.CandidateId == id).ToListAsync();
+            var softPicIds = softs.Where(s => s.SkillPictureId != null).Select(s => s.SkillPictureId!.Value).ToList();
+            if (softs.Any())
+                _db.SoftSkills.RemoveRange(softs);
+
+            var interests = await _db.Interests.Where(i => i.CandidateId == id).ToListAsync();
+            var interestPicIds = interests.Where(i => i.InterestPictureId != null).Select(i => i.InterestPictureId!.Value).ToList();
+            if (interests.Any())
+                _db.Interests.RemoveRange(interests);
+
+            // remove any pictures associated with softskills, interests or candidate profile
+            var picIds = new List<Guid>();
+            if (candidate.ProfilePicId != null)
+                picIds.Add(candidate.ProfilePicId.Value);
+            picIds.AddRange(softPicIds);
+            picIds.AddRange(interestPicIds);
+
+            if (picIds.Any())
+            {
+                var pics = _db.Pictures.Where(p => picIds.Contains(p.Id));
+                _db.Pictures.RemoveRange(pics);
+            }
+
+            // finally remove candidate
+            _db.Candidates.Remove(candidate);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { Message = "Candidate and related records deleted.", Id = id });
+        }
+
         [HttpGet("GetCv")]
         [SwaggerResponse(StatusCodes.Status200OK, "Successfully retrieved Candidate CV", typeof(Candidate))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Email query parameter is required.")]
