@@ -29,6 +29,10 @@ namespace CvWebApi.Models
         [ForeignKey("ProfilePicId")]
         public Picture? ProfilePic { get; set; }
 
+        // Password hash for authentication (not returned in API responses)
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string? PasswordHash { get; set; }
+
 
         // Navigation collections
         public List<WorkExperience> WorkExperience { get; set; } = new();

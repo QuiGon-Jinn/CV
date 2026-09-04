@@ -2,6 +2,13 @@ using CvWebApi.Data;
 using CvWebApi.InputModels;
 using CvWebApi.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -12,15 +19,18 @@ namespace CvWebApi.Controllers
     public class CvController : ControllerBase
     {
         private readonly CvDbContext _db;
+        private readonly IConfiguration _config;
 
-        public CvController(CvDbContext db)
+        public CvController(CvDbContext db, IConfiguration config)
         {
             _db = db;
+            _config = config;
         }
 
         [HttpPost("AddCv")]
         [SwaggerResponse(StatusCodes.Status200OK, "Candidate successfully added", typeof(Candidate))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Candidate not added. ModelState is invalid")]
+        [Authorize]
         public async Task<IActionResult> AddCv([FromBody] CandidateInput input)
         {
             if (!ModelState.IsValid)
@@ -30,6 +40,10 @@ namespace CvWebApi.Controllers
             var inputEmailAddress = input.EmailAddress?.Trim().ToLower();
             if(string.IsNullOrWhiteSpace(inputEmailAddress))
                 return BadRequest(new { Message = "Email can't be null or empty" });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputEmailAddress)
+                return Forbid();
 
             var existing = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputEmailAddress);
 
@@ -78,7 +92,89 @@ namespace CvWebApi.Controllers
             return Ok(candidate);
         }
 
+        [HttpPost("Register")]
+        [AllowAnonymous]
+        [SwaggerResponse(StatusCodes.Status200OK, "User registered", typeof(Candidate))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Registration failed. ModelState invalid or user exists.")]
+        public async Task<IActionResult> Register([FromBody] AuthRegisterInput input)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var email = input.EmailAddress?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new { Message = "Email can't be null or empty" });
+
+            var exists = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == email);
+            if (exists is not null)
+                return BadRequest(new { Message = "User with this email already exists." });
+
+            var candidate = new Candidate
+            {
+                Id = Guid.NewGuid(),
+                FullName = input.FullName,
+                EmailAddress = email
+            };
+
+            var hasher = new PasswordHasher<Candidate>();
+            candidate.PasswordHash = hasher.HashPassword(candidate, input.Password);
+
+            _db.Candidates.Add(candidate);
+            await _db.SaveChangesAsync();
+
+            return Ok(candidate);
+        }
+
+        [HttpPost("Login")]
+        [AllowAnonymous]
+        [SwaggerResponse(StatusCodes.Status200OK, "Login successful. Returns JWT token.")]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Login failed. Invalid credentials.")]
+        public async Task<IActionResult> Login([FromBody] AuthLoginInput input)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var email = input.EmailAddress?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new { Message = "Email can't be null or empty" });
+
+            var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == email);
+            if (candidate is null || string.IsNullOrWhiteSpace(candidate.PasswordHash))
+                return BadRequest(new { Message = "Invalid credentials." });
+
+            var hasher = new PasswordHasher<Candidate>();
+            var result = hasher.VerifyHashedPassword(candidate, candidate.PasswordHash, input.Password);
+            if (result == PasswordVerificationResult.Failed)
+                return BadRequest(new { Message = "Invalid credentials." });
+
+            // create token
+            var jwtKey = _config.GetValue<string>("Jwt:Key");
+            var jwtIssuer = _config.GetValue<string>("Jwt:Issuer");
+            var jwtAudience = _config.GetValue<string>("Jwt:Audience");
+            var expireMinutes = _config.GetValue<int>("Jwt:ExpireMinutes");
+
+            var claims = new[] {
+                new Claim(ClaimTypes.Email, candidate.EmailAddress),
+                new Claim(ClaimTypes.NameIdentifier, candidate.Id.ToString()),
+                new Claim(ClaimTypes.Name, candidate.FullName ?? string.Empty)
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var token = new JwtSecurityToken(
+                issuer: jwtIssuer,
+                audience: jwtAudience,
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(expireMinutes),
+                signingCredentials: creds
+            );
+
+            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+            return Ok(new { token = tokenString });
+        }
+
         [HttpPost("AddWorkExperience")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "WorkExperience successfully added", typeof(WorkExperience))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Work experience not added. ModelState is invalid")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
@@ -90,6 +186,10 @@ namespace CvWebApi.Controllers
             var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(inputCandidateEmail))
                 return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
+                return Forbid();
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -115,6 +215,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddAchievementAndTask")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Achievement and task successfully added", typeof(AchievementsAndTasks))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Achievement and task not added. Work experience not found for provided employer and candidate.")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
@@ -126,6 +227,10 @@ namespace CvWebApi.Controllers
             var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(inputCandidateEmail))
                 return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
+                return Forbid();
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -159,6 +264,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddSkill")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Skill successfully added", typeof(Skill))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Skill not added. ModelState is invalid")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate or WorkEexperience not found for provided employer and candidate.")]
@@ -170,6 +276,10 @@ namespace CvWebApi.Controllers
             var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(inputCandidateEmail))
                 return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
+                return Forbid();
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -210,6 +320,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddSoftSkill")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "SoftSkill successfully added", typeof(SoftSkill))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "SoftSkill not added. Either SkillName or SkillPicture must be provided.")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
@@ -225,6 +336,10 @@ namespace CvWebApi.Controllers
             var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(inputCandidateEmail))
                 return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
+                return Forbid();
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -254,6 +369,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddInterest")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Interest successfully added", typeof(Interest))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Interest not added. ModelState is invalid")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
@@ -268,6 +384,10 @@ namespace CvWebApi.Controllers
             var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(inputCandidateEmail))
                 return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
+                return Forbid();
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -297,6 +417,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddEducation")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Education successfully added", typeof(Education))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Education not added. ModelState is invalid")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
@@ -308,6 +429,10 @@ namespace CvWebApi.Controllers
             var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(inputCandidateEmail))
                 return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
+                return Forbid();
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -331,6 +456,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpPost("AddReference")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Reference successfully added", typeof(Education))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Reference not added. Work experience not found for provided employer and candidate.")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
@@ -342,6 +468,10 @@ namespace CvWebApi.Controllers
             var inputCandidateEmail = input.CandidateEmail?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(inputCandidateEmail))
                 return BadRequest(new { Message = "CandidateEmail can't be null or empty" });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
+                return Forbid();
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -384,6 +514,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpDelete("DeleteWorkExperience/{id}")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "WorkExperience deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "WorkExperience not found")]
         public async Task<IActionResult> DeleteWorkExperience([FromRoute] Guid id)
@@ -396,6 +527,11 @@ namespace CvWebApi.Controllers
 
             if (work is null)
                 return NotFound(new { Message = "WorkExperience not found." });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            var owner = await _db.Candidates.FindAsync(work.CandidateId);
+            if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
+                return Forbid();
 
             // Remove children first
             if (work.AchievementsAndTasks.Any())
@@ -414,6 +550,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpDelete("DeleteAchievement/{id}")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Achievement deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Achievement not found")]
         public async Task<IActionResult> DeleteAchievement([FromRoute] Guid id)
@@ -421,6 +558,15 @@ namespace CvWebApi.Controllers
             var ach = await _db.AchievementsAndTasks.FindAsync(id);
             if (ach is null)
                 return NotFound(new { Message = "Achievement not found." });
+            // ensure owner
+            var work = await _db.WorkExperiences.FindAsync(ach.WorkExperienceId);
+            if (work == null)
+                return NotFound(new { Message = "Related work experience not found." });
+
+            var owner = await _db.Candidates.FindAsync(work.CandidateId);
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
+                return Forbid();
 
             _db.AchievementsAndTasks.Remove(ach);
             await _db.SaveChangesAsync();
@@ -428,6 +574,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpDelete("DeleteSkill/{id}")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Skill deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Skill not found")]
         public async Task<IActionResult> DeleteSkill([FromRoute] Guid id)
@@ -435,6 +582,10 @@ namespace CvWebApi.Controllers
             var skill = await _db.Skills.FindAsync(id);
             if (skill is null)
                 return NotFound(new { Message = "Skill not found." });
+            var owner = await _db.Candidates.FindAsync(skill.CandidateId);
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
+                return Forbid();
 
             _db.Skills.Remove(skill);
             await _db.SaveChangesAsync();
@@ -442,6 +593,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpDelete("DeleteSoftSkill/{id}")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "SoftSkill deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "SoftSkill not found")]
         public async Task<IActionResult> DeleteSoftSkill([FromRoute] Guid id)
@@ -449,6 +601,10 @@ namespace CvWebApi.Controllers
             var soft = await _db.SoftSkills.FindAsync(id);
             if (soft is null)
                 return NotFound(new { Message = "SoftSkill not found." });
+            var owner = await _db.Candidates.FindAsync(soft.CandidateId);
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
+                return Forbid();
 
             // remove associated picture if present
             if (soft.SkillPictureId != null)
@@ -464,6 +620,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpDelete("DeleteInterest/{id}")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Interest deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Interest not found")]
         public async Task<IActionResult> DeleteInterest([FromRoute] Guid id)
@@ -471,6 +628,10 @@ namespace CvWebApi.Controllers
             var interest = await _db.Interests.FindAsync(id);
             if (interest is null)
                 return NotFound(new { Message = "Interest not found." });
+            var owner = await _db.Candidates.FindAsync(interest.CandidateId);
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
+                return Forbid();
 
             if (interest.InterestPictureId != null)
             {
@@ -485,6 +646,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpDelete("DeleteEducation/{id}")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Education deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Education not found")]
         public async Task<IActionResult> DeleteEducation([FromRoute] Guid id)
@@ -492,6 +654,10 @@ namespace CvWebApi.Controllers
             var edu = await _db.Educations.FindAsync(id);
             if (edu is null)
                 return NotFound(new { Message = "Education not found." });
+            var owner = await _db.Candidates.FindAsync(edu.CandidateId);
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
+                return Forbid();
 
             _db.Educations.Remove(edu);
             await _db.SaveChangesAsync();
@@ -499,6 +665,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpDelete("DeleteReference/{id}")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Reference deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Reference not found")]
         public async Task<IActionResult> DeleteReference([FromRoute] Guid id)
@@ -506,6 +673,21 @@ namespace CvWebApi.Controllers
             var reference = await _db.References.FindAsync(id);
             if (reference is null)
                 return NotFound(new { Message = "Reference not found." });
+            // determine owner
+            Guid? ownerCandidateId = reference.CandidateId;
+            if (ownerCandidateId == null && reference.WorkExperienceId != null)
+            {
+                var work = await _db.WorkExperiences.FindAsync(reference.WorkExperienceId.Value);
+                ownerCandidateId = work?.CandidateId;
+            }
+
+            if (ownerCandidateId == null)
+                return NotFound(new { Message = "Owner not found for reference." });
+
+            var owner = await _db.Candidates.FindAsync(ownerCandidateId.Value);
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
+                return Forbid();
 
             _db.References.Remove(reference);
             await _db.SaveChangesAsync();
@@ -513,6 +695,7 @@ namespace CvWebApi.Controllers
         }
 
         [HttpDelete("DeleteCv/{id}")]
+        [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Candidate and related records deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found")]
         public async Task<IActionResult> DeleteCv([FromRoute] Guid id)
@@ -520,6 +703,10 @@ namespace CvWebApi.Controllers
             var candidate = await _db.Candidates.FindAsync(id);
             if (candidate is null)
                 return NotFound(new { Message = "Candidate not found." });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != candidate.EmailAddress)
+                return Forbid();
 
             // gather related work experience ids
             var workIds = await _db.WorkExperiences.Where(w => w.CandidateId == id).Select(w => w.Id).ToListAsync();
