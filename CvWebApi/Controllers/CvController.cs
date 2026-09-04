@@ -116,7 +116,7 @@ namespace CvWebApi.Controllers
         public async Task<IActionResult> AddCv([FromBody] CandidateInput input)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+                return BadRequest(ModelState);            
 
             // Try to find existing candidate by email (case-insensitive)
             var inputEmailAddress = input.EmailAddress?.Trim().ToLower();
@@ -125,7 +125,7 @@ namespace CvWebApi.Controllers
 
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputEmailAddress)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own CV" });
 
             var existing = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputEmailAddress);
 
@@ -191,26 +191,41 @@ namespace CvWebApi.Controllers
 
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own work experience" });
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
             if (candidate is null)
                 return NotFound(new { Message = "Candidate not found for provided email." });
 
-            var work = new WorkExperience
-            {
-                Id = Guid.NewGuid(),
-                CandidateId = candidate.Id,
-                EmployerName = input.EmployerName.Trim(),
-                JobTitle = input.JobTitle,
-                StartDate = input.StartDate,
-                EndDate = input.EndDate,
-                Location = input.Location,
-                Summary = input.Summary
-            };
+            // Find a work experience record for this candidate and employer name
+            var work = await _db.WorkExperiences
+                .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null
+                && w.EmployerName.Equals(input.EmployerName.Trim()));
 
-            _db.WorkExperiences.Add(work);
+            // If exact case-insensitive match not found, try partial match (contains) with OrdinalIgnoreCase
+            work ??= await _db.WorkExperiences
+                .FirstOrDefaultAsync(w => w.CandidateId == candidate.Id && w.EmployerName != null
+                && w.EmployerName.Contains(input.EmployerName.Trim()));
+
+            if (work is null)
+            {
+                work = new WorkExperience()
+                {
+                    Id = Guid.NewGuid(),
+                    EmployerName = input.EmployerName,
+                    CandidateId = candidate.Id
+                };
+
+                _db.WorkExperiences.Add(work);
+            }
+
+            work.JobTitle = input.JobTitle;
+            work.StartDate = input.StartDate;
+            work.EndDate = input.EndDate;
+            work.Location = input.Location;
+            work.Summary = input.Summary;
+
             await _db.SaveChangesAsync();
 
             return Ok(work);
@@ -233,7 +248,7 @@ namespace CvWebApi.Controllers
 
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own achievements" });
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -283,7 +298,7 @@ namespace CvWebApi.Controllers
 
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own skills" });
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -344,7 +359,7 @@ namespace CvWebApi.Controllers
 
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own soft skills" });
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -393,7 +408,7 @@ namespace CvWebApi.Controllers
 
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own interests" });
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -439,7 +454,7 @@ namespace CvWebApi.Controllers
 
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own education records" });
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -479,7 +494,7 @@ namespace CvWebApi.Controllers
 
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputCandidateEmail)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own references" });
 
             var candidate = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputCandidateEmail);
 
@@ -540,7 +555,7 @@ namespace CvWebApi.Controllers
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             var owner = await _db.Candidates.FindAsync(work.CandidateId);
             if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own work experience" });
 
             // Remove children first
             if (work.AchievementsAndTasks.Any())
@@ -576,7 +591,7 @@ namespace CvWebApi.Controllers
             var owner = await _db.Candidates.FindAsync(work.CandidateId);
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own achievements" });
 
             _db.AchievementsAndTasks.Remove(ach);
             await _db.SaveChangesAsync();
@@ -596,7 +611,7 @@ namespace CvWebApi.Controllers
             var owner = await _db.Candidates.FindAsync(skill.CandidateId);
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own skills" });
 
             _db.Skills.Remove(skill);
             await _db.SaveChangesAsync();
@@ -616,7 +631,7 @@ namespace CvWebApi.Controllers
             var owner = await _db.Candidates.FindAsync(soft.CandidateId);
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own soft skills" });
 
             // remove associated picture if present
             if (soft.SkillPictureId != null)
@@ -644,7 +659,7 @@ namespace CvWebApi.Controllers
             var owner = await _db.Candidates.FindAsync(interest.CandidateId);
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own interests" });
 
             if (interest.InterestPictureId != null)
             {
@@ -671,7 +686,7 @@ namespace CvWebApi.Controllers
             var owner = await _db.Candidates.FindAsync(edu.CandidateId);
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own education records" });
 
             _db.Educations.Remove(edu);
             await _db.SaveChangesAsync();
@@ -702,7 +717,7 @@ namespace CvWebApi.Controllers
             var owner = await _db.Candidates.FindAsync(ownerCandidateId.Value);
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (owner == null || string.IsNullOrWhiteSpace(userEmail) || userEmail != owner.EmailAddress)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own references" });
 
             _db.References.Remove(reference);
             await _db.SaveChangesAsync();
@@ -722,7 +737,7 @@ namespace CvWebApi.Controllers
 
             var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
             if (string.IsNullOrWhiteSpace(userEmail) || userEmail != candidate.EmailAddress)
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You may only modify your own CV" });
 
             // gather related work experience ids
             var workIds = await _db.WorkExperiences.Where(w => w.CandidateId == id).Select(w => w.Id).ToListAsync();
