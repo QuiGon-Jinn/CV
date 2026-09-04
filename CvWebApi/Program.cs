@@ -44,7 +44,22 @@ builder.Services.AddSwaggerGen(options =>
 {
     // Enable Swashbuckle annotations
     options.EnableAnnotations();
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
+    {
+        Description = $"Use /auth/token and paste the token here",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
 });
+
+// NOTE: JWT security definition for Swagger UI can be added here. If you want the
+// Authorize button to appear in Swagger UI, add an OpenApiSecurityScheme and
+// corresponding SecurityRequirement. This requires Microsoft.OpenApi.Models
+// types to be available at compile time. If you want me to add that now I can,
+// but it may require adjusting package references. Leave this comment as a reminder.
 
 var app = builder.Build();
 

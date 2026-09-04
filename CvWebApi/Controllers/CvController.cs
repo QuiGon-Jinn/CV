@@ -27,71 +27,6 @@ namespace CvWebApi.Controllers
             _config = config;
         }
 
-        [HttpPost("AddCv")]
-        [SwaggerResponse(StatusCodes.Status200OK, "Candidate successfully added", typeof(Candidate))]
-        [SwaggerResponse(StatusCodes.Status400BadRequest, "Candidate not added. ModelState is invalid")]
-        [Authorize]
-        public async Task<IActionResult> AddCv([FromBody] CandidateInput input)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            // Try to find existing candidate by email (case-insensitive)
-            var inputEmailAddress = input.EmailAddress?.Trim().ToLower();
-            if(string.IsNullOrWhiteSpace(inputEmailAddress))
-                return BadRequest(new { Message = "Email can't be null or empty" });
-
-            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
-            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputEmailAddress)
-                return Forbid();
-
-            var existing = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputEmailAddress);
-
-            if (existing is not null)
-            {
-                // Update fields
-                existing.FullName = input.FullName;
-                existing.PhoneNumber = input.PhoneNumber;
-                existing.Location = input.Location;
-                existing.Title = input.Title;
-                existing.Summary = input.Summary;
-
-                if (!string.IsNullOrWhiteSpace(input.ProfilePic))
-                {
-                    var pic = new Picture { Id = Guid.NewGuid(), Photo = input.ProfilePic };
-                    _db.Pictures.Add(pic);
-                    existing.ProfilePicId = pic.Id;
-                }
-
-                await _db.SaveChangesAsync();
-                return Ok(existing);
-            }
-
-            // Insert new candidate
-            var candidate = new Candidate
-            {
-                Id = Guid.NewGuid(),
-                FullName = input.FullName,
-                EmailAddress = inputEmailAddress,
-                PhoneNumber = input.PhoneNumber,
-                Location = input.Location,
-                Title = input.Title,
-                Summary = input.Summary
-            };
-
-            if (!string.IsNullOrWhiteSpace(input.ProfilePic))
-            {
-                var pic = new Picture { Id = Guid.NewGuid(), Photo = input.ProfilePic };
-                _db.Pictures.Add(pic);
-                candidate.ProfilePicId = pic.Id;
-            }
-
-            _db.Candidates.Add(candidate);
-            await _db.SaveChangesAsync();
-
-            return Ok(candidate);
-        }
-
         [HttpPost("Register")]
         [AllowAnonymous]
         [SwaggerResponse(StatusCodes.Status200OK, "User registered", typeof(Candidate))]
@@ -173,11 +108,78 @@ namespace CvWebApi.Controllers
             return Ok(new { token = tokenString });
         }
 
+        [HttpPost("AddCv")]
+        [Authorize]
+        [SwaggerResponse(StatusCodes.Status200OK, "Candidate successfully added", typeof(Candidate))]
+        [SwaggerResponse(StatusCodes.Status400BadRequest, "Candidate not added. ModelState is invalid")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own CV")]
+        public async Task<IActionResult> AddCv([FromBody] CandidateInput input)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Try to find existing candidate by email (case-insensitive)
+            var inputEmailAddress = input.EmailAddress?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(inputEmailAddress))
+                return BadRequest(new { Message = "Email can't be null or empty" });
+
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(userEmail) || userEmail != inputEmailAddress)
+                return Forbid();
+
+            var existing = await _db.Candidates.FirstOrDefaultAsync(c => c.EmailAddress == inputEmailAddress);
+
+            if (existing is not null)
+            {
+                // Update fields
+                existing.FullName = input.FullName;
+                existing.PhoneNumber = input.PhoneNumber;
+                existing.Location = input.Location;
+                existing.Title = input.Title;
+                existing.Summary = input.Summary;
+
+                if (!string.IsNullOrWhiteSpace(input.ProfilePic))
+                {
+                    var pic = new Picture { Id = Guid.NewGuid(), Photo = input.ProfilePic };
+                    _db.Pictures.Add(pic);
+                    existing.ProfilePicId = pic.Id;
+                }
+
+                await _db.SaveChangesAsync();
+                return Ok(existing);
+            }
+
+            // Insert new candidate
+            var candidate = new Candidate
+            {
+                Id = Guid.NewGuid(),
+                FullName = input.FullName,
+                EmailAddress = inputEmailAddress,
+                PhoneNumber = input.PhoneNumber,
+                Location = input.Location,
+                Title = input.Title,
+                Summary = input.Summary
+            };
+
+            if (!string.IsNullOrWhiteSpace(input.ProfilePic))
+            {
+                var pic = new Picture { Id = Guid.NewGuid(), Photo = input.ProfilePic };
+                _db.Pictures.Add(pic);
+                candidate.ProfilePicId = pic.Id;
+            }
+
+            _db.Candidates.Add(candidate);
+            await _db.SaveChangesAsync();
+
+            return Ok(candidate);
+        }
+
         [HttpPost("AddWorkExperience")]
         [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "WorkExperience successfully added", typeof(WorkExperience))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Work experience not added. ModelState is invalid")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own work experience")]
         public async Task<IActionResult> AddWorkExperience([FromBody] WorkExperienceInput input)
         {
             if (!ModelState.IsValid)
@@ -219,6 +221,7 @@ namespace CvWebApi.Controllers
         [SwaggerResponse(StatusCodes.Status200OK, "Achievement and task successfully added", typeof(AchievementsAndTasks))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Achievement and task not added. Work experience not found for provided employer and candidate.")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own achievements")]
         public async Task<IActionResult> AddAchievementAndTask([FromBody] AchievementAndTaskInput input)
         {
             if (!ModelState.IsValid)
@@ -268,6 +271,7 @@ namespace CvWebApi.Controllers
         [SwaggerResponse(StatusCodes.Status200OK, "Skill successfully added", typeof(Skill))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Skill not added. ModelState is invalid")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate or WorkEexperience not found for provided employer and candidate.")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own skills")]
         public async Task<IActionResult> AddSkill([FromBody] SkillInput input)
         {
             if (!ModelState.IsValid)
@@ -324,6 +328,7 @@ namespace CvWebApi.Controllers
         [SwaggerResponse(StatusCodes.Status200OK, "SoftSkill successfully added", typeof(SoftSkill))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "SoftSkill not added. Either SkillName or SkillPicture must be provided.")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own soft skills")]
         public async Task<IActionResult> AddSoftSkill([FromBody] SoftSkillInput input)
         {
             if (!ModelState.IsValid)
@@ -373,6 +378,7 @@ namespace CvWebApi.Controllers
         [SwaggerResponse(StatusCodes.Status200OK, "Interest successfully added", typeof(Interest))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Interest not added. ModelState is invalid")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own interests")]
         public async Task<IActionResult> AddInterest([FromBody] InterestInput input)
         {
             if (!ModelState.IsValid)
@@ -421,6 +427,7 @@ namespace CvWebApi.Controllers
         [SwaggerResponse(StatusCodes.Status200OK, "Education successfully added", typeof(Education))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Education not added. ModelState is invalid")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own education records")]
         public async Task<IActionResult> AddEducation([FromBody] EducationInput input)
         {
             if (!ModelState.IsValid)
@@ -460,6 +467,7 @@ namespace CvWebApi.Controllers
         [SwaggerResponse(StatusCodes.Status200OK, "Reference successfully added", typeof(Education))]
         [SwaggerResponse(StatusCodes.Status400BadRequest, "Reference not added. Work experience not found for provided employer and candidate.")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found for provided email.")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own references")]
         public async Task<IActionResult> AddReference([FromBody] ReferenceInput input)
         {
             if (!ModelState.IsValid)
@@ -517,6 +525,7 @@ namespace CvWebApi.Controllers
         [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "WorkExperience deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "WorkExperience not found")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own work experience")]
         public async Task<IActionResult> DeleteWorkExperience([FromRoute] Guid id)
         {
             var work = await _db.WorkExperiences
@@ -553,6 +562,7 @@ namespace CvWebApi.Controllers
         [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Achievement deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Achievement not found")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own achievements")]
         public async Task<IActionResult> DeleteAchievement([FromRoute] Guid id)
         {
             var ach = await _db.AchievementsAndTasks.FindAsync(id);
@@ -577,6 +587,7 @@ namespace CvWebApi.Controllers
         [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Skill deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Skill not found")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own skills")]
         public async Task<IActionResult> DeleteSkill([FromRoute] Guid id)
         {
             var skill = await _db.Skills.FindAsync(id);
@@ -596,6 +607,7 @@ namespace CvWebApi.Controllers
         [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "SoftSkill deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "SoftSkill not found")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own soft skills")]
         public async Task<IActionResult> DeleteSoftSkill([FromRoute] Guid id)
         {
             var soft = await _db.SoftSkills.FindAsync(id);
@@ -623,6 +635,7 @@ namespace CvWebApi.Controllers
         [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Interest deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Interest not found")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own interests")]
         public async Task<IActionResult> DeleteInterest([FromRoute] Guid id)
         {
             var interest = await _db.Interests.FindAsync(id);
@@ -649,6 +662,7 @@ namespace CvWebApi.Controllers
         [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Education deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Education not found")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own education records")]
         public async Task<IActionResult> DeleteEducation([FromRoute] Guid id)
         {
             var edu = await _db.Educations.FindAsync(id);
@@ -668,6 +682,7 @@ namespace CvWebApi.Controllers
         [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Reference deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Reference not found")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own references")]
         public async Task<IActionResult> DeleteReference([FromRoute] Guid id)
         {
             var reference = await _db.References.FindAsync(id);
@@ -698,6 +713,7 @@ namespace CvWebApi.Controllers
         [Authorize]
         [SwaggerResponse(StatusCodes.Status200OK, "Candidate and related records deleted")]
         [SwaggerResponse(StatusCodes.Status404NotFound, "Candidate not found")]
+        [SwaggerResponse(StatusCodes.Status403Forbidden, "You may only modify your own CV")]
         public async Task<IActionResult> DeleteCv([FromRoute] Guid id)
         {
             var candidate = await _db.Candidates.FindAsync(id);
