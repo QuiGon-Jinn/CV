@@ -15,6 +15,12 @@ var jwtKey = jwtSection.GetValue<string>("Key");
 var jwtIssuer = jwtSection.GetValue<string>("Issuer");
 var jwtAudience = jwtSection.GetValue<string>("Audience");
 
+// Ensure JWT key is configured
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException("JWT signing key is not configured. Please set 'Jwt:Key' in configuration.");
+}
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -62,12 +68,6 @@ builder.Services.AddSwaggerGen(options =>
         [new OpenApiSecuritySchemeReference("Bearer", document)] = []
     });
 });
-
-// NOTE: JWT security definition for Swagger UI can be added here. If you want the
-// Authorize button to appear in Swagger UI, add an OpenApiSecurityScheme and
-// corresponding SecurityRequirement. This requires Microsoft.OpenApi.Models
-// types to be available at compile time. If you want me to add that now I can,
-// but it may require adjusting package references. Leave this comment as a reminder.
 
 var app = builder.Build();
 

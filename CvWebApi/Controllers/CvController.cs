@@ -88,6 +88,11 @@ namespace CvWebApi.Controllers
             var jwtAudience = _config.GetValue<string>("Jwt:Audience");
             var expireMinutes = _config.GetValue<int>("Jwt:ExpireMinutes");
 
+            if (string.IsNullOrWhiteSpace(jwtKey))
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "JWT signing key is not configured. Please set 'Jwt:Key' in configuration." });
+            }
+
             var claims = new[] {
                 new Claim(ClaimTypes.Email, candidate.EmailAddress),
                 new Claim(ClaimTypes.NameIdentifier, candidate.Id.ToString()),
